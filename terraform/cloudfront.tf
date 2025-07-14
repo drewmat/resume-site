@@ -42,7 +42,7 @@ resource "aws_cloudfront_distribution" "resume_site" {
 }
 
 resource "aws_cloudfront_origin_access_control" "resume_site" {
-  name = "resume_site_s3"
+  name = terraform.workspace == "default" ? "resume_site_s3" : "resume_site_dev_s3"
   origin_access_control_origin_type = "s3"
   signing_behavior = "always"
   signing_protocol = "sigv4"

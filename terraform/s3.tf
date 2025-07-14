@@ -1,3 +1,34 @@
+locals {
+
+  # aws_s3_object and fileset methods don't detect MIME types by themselves. They have to be set on a per file basis
+  # Create a map of file extensions and their corresponding MIME types.
+  mime_map = {
+    css         = "text/css"
+    eot         = "application/vnd.ms-fontobject"
+    html        = "text/html"
+    ico         = "image/x-icon"
+    jpg         = "image/jpeg"
+    js          = "text/javascript"
+    png         = "image/png"
+    svg         = "image/svg+xml"
+    ttf         = "application/x-font-ttf"
+    webmanifest = "application/manifest+json"
+    woff        = "application/font-woff"
+    woff2       = "application/font-woff2"
+    xml         = "application/xml"
+  }
+
+  # Go through the files in the content directory and load them into the "objects" variable,
+  # loading the matching MIME type, defaulting to "text/plain"
+  keys = fileset("../content/", "**")
+  objects = {
+    for key in local.keys : key => {
+      content_type = lookup(local.mime_map, reverse(split(".", key))[0], "text/plain")
+      source       = "../content/${key}"
+    }
+  }
+}
+
 # Create source bucket in S3
 resource "aws_s3_bucket" "resume_site" {
   bucket = var.bucket_name
@@ -51,10 +82,11 @@ resource "aws_s3_bucket_policy" "resume_site" {
 
 # Upload the files
 resource "aws_s3_object" "resume_site" {
-    bucket = aws_s3_bucket.resume_site.id
+  for_each = local.objects
 
-    for_each = fileset("../content/", "**/*.*")
-    key    = each.value
-    source = "../content/${each.value}"
-    etag = filemd5("../content/${each.value}")
+  bucket       = aws_s3_bucket.resume_site.id
+  key          = each.key
+  content_type = each.value.content_type
+  source       = each.value.source
+  source_hash  = filemd5(each.value.source)
 }

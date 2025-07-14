@@ -48,3 +48,13 @@ resource "aws_s3_bucket_policy" "resume_site" {
   bucket = aws_s3_bucket.resume_site.id
   policy = data.aws_iam_policy_document.allow_public_access.json
 }
+
+# Upload the files
+resource "aws_s3_object" "resume_site" {
+    bucket = aws_s3_bucket.resume_site.id
+
+    for_each = fileset("../content/", "**/*.*")
+    key    = each.value
+    source = "../content/${each.value}"
+    etag = filemd5("../content/${each.value}")
+}

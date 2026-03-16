@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PC Boot Simulation</title>
+<style>
+    body {
+        margin: 0;
+        background: black;
+        color: #00ff66;
+        font-family: "Courier New", monospace;
+        font-size: 14px;
+        overflow: hidden;
+    }
+
+    #terminal {
+        padding: 16px;
+        white-space: pre-wrap;
+        line-height: 1.35;
+        position: relative;
+    }
+
+    /* VGA flicker / scanlines */
+    #terminal::after {
+        content: "";
+        pointer-events: none;
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: repeating-linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.03),
+            rgba(255,255,255,0.03) 1px,
+            transparent 1px,
+            transparent 3px
+        );
+        animation: vgaFlicker 0.12s infinite;
+    }
+
+    @keyframes vgaFlicker {
+        0%   { opacity: 0.25; }
+        50%  { opacity: 0.15; }
+        100% { opacity: 0.25; }
+    }
+
+    .grub { color: #ffffff; }
+    .selected {
+        background: #ffffff;
+        color: #000000;
+    }
+
+    .cursor {
+        display: inline-block;
+        width: 10px;
+        height: 16px;
+        background: #00ff66;
+        animation: blink 1s steps(1) infinite;
+    }
+
+    @keyframes blink {
+        50% { opacity: 0; }
+    }
+</style>
+</head>
+<body>
+<div id="terminal"></div>
+
+<script>
+const terminal = document.getElementById("terminal");
+
+/* ================= PC SPEAKER ================= */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function pcClick(freq = 1200, duration = 0.01) {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "square";
+    o.frequency.value = freq;
+    g.gain.value = 0.08;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + duration);
+}
+
+function pcBeep(freq = 800, duration = 0.08) {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "square";
+    o.frequency.value = freq;
+    g.gain.value = 0.1;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + duration);
+}
+
+/* ================= VGA JITTER ================= */
+function vgaJitter() {
+    terminal.style.transform =
+        `translate(${Math.random()*1.5-0.75}px, ${Math.random()*1.5-0.75}px)`;
+    setTimeout(() => terminal.style.transform = "translate(0,0)", 30);
+}
+
+/* ================= BIOS POST ================= */
+const biosLines = [
+    "American Megatrends, Inc.",
+    "BIOS Date: 08/14/24  Ver: 3.21",
+    "",
+    "CPU: Intel(R) Core(TM) i7-9700K @ 3.60GHz",
+    "Speed: 3600MHz",
+    "",
+    "Press DEL to enter SETUP",
+    "",
+    "Initializing USB Controllers .. Done.",
+    "Auto-Detecting SATA Port 0 .. SSD",
+    "Auto-Detecting SATA Port 1 .. ATAPI",
+    "",
+    "Memory Test:",
+];
+
+let mem = 0;
+let biosIndex = 0;
+
+function startBIOS() {
+    terminal.innerHTML = "";
+    pcBeep(900, 0.15);
+    printBIOSLine();
+}
+
+function printBIOSLine() {
+    if (biosIndex < biosLines.length) {
+        terminal.textContent += biosLines[biosIndex] + "\n";
+        pcClick(900);
+        vgaJitter();
+        biosIndex++;
+        setTimeout(printBIOSLine, 180);
+    } else {
+        countMemory();
+    }
+}
+
+function countMemory() {
+    if (mem <= 32768) {
+        terminal.textContent =
+            terminal.textContent.replace(/Memory Test:.*/, "Memory Test: " + mem + " MB");
+        mem += 512;
+        pcClick(1200, 0.005);
+        vgaJitter();
+        setTimeout(countMemory, 25);
+    } else {
+        terminal.textContent += "\nMemory Test OK\n\n";
+        pcBeep(1500, 0.12);
+        setTimeout(startGrub, 700);
+    }
+}
+
+/* ================= GRUB ================= */
+const grubEntries = [
+    "Ubuntu",
+    "Advanced options for Ubuntu",
+    "Memory test (memtest86+)",
+    "Memory test (memtest86+, serial console)"
+];
+
+let selected = 0;
+let timeout = 5;
+let grubTimer;
+
+function renderGrub() {
+    terminal.innerHTML =
+`GNU GRUB  version 2.12
+
+Use the ↑ and ↓ keys to select which entry is highlighted.
+Press Enter to boot the selected OS.
+
+`;
+    grubEntries.forEach((e,i)=>{
+        terminal.innerHTML +=
+            i===selected
+            ? `<div class="selected">${e}</div>`
+            : `<div class="grub">${e}</div>`;
+    });
+    terminal.innerHTML += `\nBooting in ${timeout} seconds...`;
+    vgaJitter();
+}
+
+function startGrub() {
+    renderGrub();
+    pcBeep(1000);
+    grubTimer = setInterval(()=>{
+        timeout--;
+        pcClick(700);
+        renderGrub();
+        if (timeout<=0) {
+            clearInterval(grubTimer);
+            bootLinux();
+        }
+    },1000);
+}
+
+document.addEventListener("keydown", e=>{
+    if (timeout<=0) return;
+    if (e.key==="ArrowUp") {
+        selected=(selected-1+grubEntries.length)%grubEntries.length;
+        pcClick(); renderGrub();
+    }
+    if (e.key==="ArrowDown") {
+        selected=(selected+1)%grubEntries.length;
+        pcClick(); renderGrub();
+    }
+    if (e.key==="Enter") {
+        clearInterval(grubTimer);
+        pcBeep(1600,0.12);
+        bootLinux();
+    }
+});
+
+/* ================= LINUX BOOT ================= */
+const bootLines = [
+    "Loading Linux 6.6.12-generic ...",
+    "Loading initial ramdisk ...",
+    "",
+    "[    0.000000] Linux version 6.6.12 (gcc 13.2.0)",
+    "[    0.023456] Initializing cgroup subsys cpu",
+    "[    0.056789] ACPI: Core revision 20230628",
+    "[    0.078901] CPU0: Intel(R) Core(TM) i7 detected",
+    "",
+    "Starting systemd...",
+    "[  OK  ] Mounted /proc.",
+    "[  OK  ] Mounted /sys.",
+    "[  OK  ] Started Network Manager.",
+    "[  OK  ] Started User Login Management.",
+    "[  OK  ] Started Graphical Environment.",
+    "",
+    "Ubuntu 24.04 LTS localhost tty1",
+    "",
+    "localhost login: "
+];
+
+let bootIndex = 0;
+
+function bootLinux() {
+    terminal.innerHTML = "";
+    bootIndex = 0;
+    setTimeout(printBootLine, 300);
+}
+
+function printBootLine() {
+    if (bootIndex >= bootLines.length) {
+        showCursor();
+        pcClick(1000);
+        return;
+    }
+    terminal.textContent += bootLines[bootIndex] + "\n";
+    if (bootLines[bootIndex].trim());
+    vgaJitter();
+    bootIndex++;
+    setTimeout(printBootLine, 120+Math.random()*150);
+}
+
+function showCursor() {
+    const c=document.createElement("span");
+    c.className="cursor";
+    terminal.appendChild(c);
+}
+
+/* ================= START ================= */
+startBIOS();
+</script>
+</body>
+</html>

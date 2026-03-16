@@ -1,0 +1,167 @@
+name: Deploy Resume Site
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (overrides branch detection)'
+        required: false
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC auth (if used instead of static keys)
+
+env:
+  TF_WORKING_DIR: ./terraform
+  CONTENT_DIR: ./content
+
+jobs:
+  # ─────────────────────────────────────────────
+  # JOB 0: Resolve environment from branch name
+  # ─────────────────────────────────────────────
+  resolve-env:
+    name: Resolve Environment
+    runs-on: ubuntu-latest
+
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      tfvars_file: ${{ steps.set-env.outputs.tfvars_file }}
+
+    steps:
+      - name: Determine environment and tfvars file
+        id: set-env
+        run: |
+          # workflow_dispatch input takes priority, otherwise derive from branch
+          if [ -n "${{ github.event.inputs.environment }}" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            ENV="prod"
+          else
+            ENV="dev"
+          fi
+
+          if [ "$ENV" = "prod" ]; then
+            TFVARS="terraform-prod.tfvars"
+          else
+            TFVARS="terraform-dev.tfvars"
+          fi
+
+          echo "environment=$ENV"   >> $GITHUB_OUTPUT
+          echo "tfvars_file=$TFVARS" >> $GITHUB_OUTPUT
+          echo "▶ Environment : $ENV"
+          echo "▶ Var file    : $TFVARS"
+
+  # ─────────────────────────────────────────────
+  # JOB 1: Terraform — provision / update infra
+  # ─────────────────────────────────────────────
+  terraform:
+    name: Terraform Plan & Apply (${{ needs.resolve-env.outputs.environment }})
+    runs-on: ubuntu-latest
+    needs: resolve-env
+
+    environment: ${{ needs.resolve-env.outputs.environment }}
+
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    outputs:
+      s3_bucket: ${{ steps.tf_outputs.outputs.s3_bucket }}
+      cloudfront_id: ${{ steps.tf_outputs.outputs.cloudfront_id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          # Tip: store separate key pairs under GitHub Environments (dev / prod)
+          # so each environment deploys with least-privilege IAM credentials.
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.7"
+          terraform_wrapper: false  # Disable wrapper so outputs are plain strings
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: |
+          terraform plan -input=false -out=tfplan \
+            -var-file="${{ needs.resolve-env.outputs.tfvars_file }}"
+          # Note: terraform-global.auto.tfvars is loaded automatically
+          # by Terraform — no -var-file flag needed for it.
+
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Extract Terraform Outputs
+        id: tf_outputs
+        run: |
+          echo "s3_bucket=$(terraform output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
+          echo "cloudfront_id=$(terraform output -raw cloudfront_distribution_id)" >> $GITHUB_OUTPUT
+
+  # ─────────────────────────────────────────────
+  # JOB 2: Deploy — sync content to S3
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Sync Content to S3 (${{ needs.resolve-env.outputs.environment }})
+    runs-on: ubuntu-latest
+    needs: [resolve-env, terraform]
+
+    environment: ${{ needs.resolve-env.outputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Sync content to S3
+        run: |
+          aws s3 sync ${{ env.CONTENT_DIR }} s3://${{ needs.terraform.outputs.s3_bucket }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html" \
+            --exclude "*.json"
+
+          # HTML and JSON get shorter cache TTLs so updates propagate quickly
+          aws s3 sync ${{ env.CONTENT_DIR }} s3://${{ needs.terraform.outputs.s3_bucket }} \
+            --delete \
+            --cache-control "public, max-age=0, must-revalidate" \
+            --include "*.html" \
+            --include "*.json"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ needs.terraform.outputs.cloudfront_id }} \
+            --paths "/*"
+
+      - name: Print site URL
+        run: |
+          echo "✅ Deploy complete!"
+          echo "🌐 Environment       : ${{ needs.resolve-env.outputs.environment }}"
+          echo "🌐 CloudFront Dist ID: ${{ needs.terraform.outputs.cloudfront_id }}"

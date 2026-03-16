@@ -1,141 +1,617 @@
-<!DOCTYPE HTML>
-<!--
-	Strata by HTML5 UP
-	html5up.net | @ajlkn
-	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
--->
-<html>
-	<head>
-		<title>Andy Engdahl</title>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-		<link rel="stylesheet" href="assets/css/main.css" />
-	</head>
-	<body class="is-preload">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux Boot Sequence</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
-		<!-- Header -->
-			<header id="header">
-				<div class="inner">
-					<a href="#" class="image avatar"><img src="images/avatar.png" alt="" /></a>
-					<h1><strong>Andy Engdahl</strong><br />
-					Cloud Systems Architect/Engineer<br /></h1>
-				</div>
-			</header>
+  :root {
+    --green: #00ff41;
+    --dim-green: #00b32c;
+    --faint-green: #003b0f;
+    --white: #e8e8e8;
+    --yellow: #ffd700;
+    --red: #ff3333;
+    --blue: #4fc3f7;
+    --bg: #0a0a0a;
+  }
 
-		<!-- Main -->
-			<div id="main">
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-				<!-- One -->
-					<section id="one">
-						<header class="major">
-							<h2>Career Profile</h2>
-						</header>
-						<p>Highly effective and results-focused professional with 26 years of leadership in the IT sector from web development to systems engineering. Demonstrated excellence at overseeing all aspects of network and system administration including installations, maintenance, and troubleshooting, as well as spearheading migrations and other large-scale projects. Maximize cross-departmental team effectiveness and minimize excess workloads by introducing state-of-the art tools and process automations. Employ technical knowledge and critical thinking skills to provide exceptional software, hardware, and network support to customers, quickly diagnosing and resolving issues in a timely manner as well as effectively handling escalations.</p>
-					</section>
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    cursor: none;
+  }
 
-					<section id="two">
-						<header>
-							<h2>Core Competencies</h2>
-						</header>
-						<div class="row">
-							<div class="col-6 col-12-xsmall">
-								<ul>
-									<li>Team Collaboration/Leadership</li>
-									<li>Customer Service Excellence</li>
-									<li>Custom Tool Development</li>
-									<li>Infrastructure as Code/Automation</li>
-									<li>Cloud Infrastructure Management</li>
-								</ul>
-							</div>
-							<div class="col-6 col-12-xsmall">
-								<ul>
-									<li>Monitoring/Incident Response</li>
-									<li>Technical Problem-Solving</li>
-									<li>Continuous Improvement</li>
-									<li>Project Management</li>
-								</ul>
-							</div>
-						</div>
-					</section>
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
 
-					<section id="three">
-						<h2>Professional Experience</h2>
-						<header>
-							<h3>Billtrust</h3>
-							<p>
-								Senior Systems Engineer<br />
-								Boulder, CO<br />
-								October 2016 to Present<br />
-							</p>
-						</header>
-						<ul>
-							<li>Enhance the eCommerce operations of over 100 individual and small business customers by migrating websites to Amazon Web Services.</li>
-							<li>Decrease manual staff workload by introducing automated provisioning, configuration management, and Infrastructure as Code.</li>
-							<li>Streamline Development and Customer Service operations by developing a utility for testing customer-provided SMTP settings, a database maintenance utility, a hung services restarter, and other tools. </li>
-							<li>Responded promptly to questions and complaints from over 200 customers, successfully maintaining a high customer satisfaction rating.</li>
-							<li>Implemented a system backup and disaster recovery plan that ensured data integrity without compromising performance.</li>
-						</ul>
-						<header>
-							<h3>Earthnet Inc.</h3>
-							<p>
-								Systems Administrator<br />
-								Boulder, CO<br />
-								October 2006 to October 2016
-							</p>
-						</header>  
-						<ul>
-							<li>Increased cooling efficiency and reduced power consumption by designing and implementing datacenter cooling improvements.</li>
-							<li>Using the PHP language, designed, implemented, and maintained an internal assets tracking and mapping application to more accurately audit customer occupied datacenter space.</li>
-							<li>Eliminated manual backup generator testing by creating an Arduino based device to aid in automation.</li>
-						</ul>
-					</section>
+  /* CRT vignette */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.75) 100%);
+    pointer-events: none;
+    z-index: 101;
+  }
 
-					<section id="four">
-						<h2>Previous Experience</h2>
-							<ul class="alt">
-							<li>Crop Hail Management, Golden, CO, February 2001 to July 2001 | WEB DEVELOPER</li>
-							<li>Andersen WindowCare Solutions Center, Golden, CO, July 2000 to February 2001 | TIER II CUSTOMER SERVICE REPRESENTATIVE </li>
-							<li>Crop Hail Management, Golden, CO, March 1998 to January 2000 | WEB DEVELOPER</li>
-						</ul>
-					</section>
+  #screen {
+    padding: 18px 24px;
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
 
-					<section id="five">
-						<h2>Education and Credentials</h2>
-						<ul class="alt">
-							<li>Coursework completed in Graphic Design, 2005; Front Range Community College, Westminster, CO</li>
-							<li>Coursework completed in Computer Science, 1999; Colorado School of Mines, Golden, CO</li>
-							<li>Amazon Web Services Certified Systems Architect - Associate, March 2020-March 2023, Expired</li>
-						</ul>
-					</section>
+  .line {
+    opacity: 0;
+    white-space: pre;
+    animation: appear 0.01s forwards;
+  }
 
-					<section id="six">
-						<h2>Additional Information</h2>
-						<p>Technical Proficiencies: Unix/Linux, AWS, Kubernetes, HashiCorp Terriform, SaltStack, Elastic Stack/Opensearch, Apache Web Server, Apache Tomcat, Icinga2, Jenkins, Cisco IOS, Bash, Python, Java, MySQL, Microsoft Office, Some NodeJS/Angular</p>
-					</section>
+  @keyframes appear {
+    to { opacity: 1; }
+  }
 
-			</div>
+  .ok     { color: var(--green); }
+  .fail   { color: var(--red); }
+  .warn   { color: var(--yellow); }
+  .info   { color: var(--blue); }
+  .dim    { color: #4a7a4a; }
+  .white  { color: var(--white); }
+  .bold   { font-weight: bold; color: #fff; }
 
-		<!-- Footer -->
-			<footer id="footer">
-				<div class="inner">
-					<ul class="icons">
-						<li><a href="https://www.linkedin.com/in/andyengdahl/" class="icon brands fa-linkedin"><span class="label">LinkedIn</span></a></li>
-						<li><a href="https://github.com/drewmat" class="icon brands fa-github"><span class="label">Github</span></a></li>
-						<li><a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#97;&#110;&#100;&#121;&#46;&#101;&#110;&#103;&#100;&#97;&#104;&#108;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;" class="icon solid fa-envelope"><span class="label">Email</span></a></li>
-					</ul>
-					<ul class="copyright">
-						<li>&copy; Andy Engdahl</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
-					</ul>
-				</div>
-			</footer>
+  .bracket-ok   { color: var(--green); }
+  .bracket-fail { color: var(--red); }
+  .bracket-warn { color: var(--yellow); }
 
-		<!-- Scripts -->
-			<script src="assets/js/jquery.min.js"></script>
-			<script src="assets/js/jquery.poptrox.min.js"></script>
-			<script src="assets/js/browser.min.js"></script>
-			<script src="assets/js/breakpoints.min.js"></script>
-			<script src="assets/js/util.js"></script>
-			<script src="assets/js/main.js"></script>
+  #progress-bar-wrap {
+    display: inline-block;
+    opacity: 0;
+  }
+  #progress-bar {
+    display: inline-block;
+    width: 0px;
+    height: 10px;
+    background: var(--green);
+    vertical-align: middle;
+    box-shadow: 0 0 6px var(--green);
+    transition: width 0.08s linear;
+  }
 
-	</body>
+  #login-prompt {
+    display: none;
+    margin-top: 10px;
+  }
+
+  #login-prompt .prompt-line {
+    color: var(--green);
+  }
+
+  #cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--green);
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+    box-shadow: 0 0 6px var(--green);
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .glow {
+    text-shadow: 0 0 8px var(--green), 0 0 16px rgba(0,255,65,0.4);
+  }
+
+  #bios-screen {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    color: var(--white);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 20px 28px;
+    z-index: 200;
+    line-height: 1.5;
+  }
+
+  #bios-screen .bios-title {
+    color: #fff;
+    font-size: 15px;
+    margin-bottom: 2px;
+  }
+
+  #bios-screen .bios-sub {
+    color: #aaa;
+    font-size: 11px;
+    margin-bottom: 16px;
+  }
+
+  .mem-bar {
+    color: #00cfff;
+  }
+
+  #boot-logo {
+    color: var(--green);
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: pre;
+    text-shadow: 0 0 10px rgba(0,255,65,0.5);
+    margin-bottom: 6px;
+  }
+
+  #fsck-line { color: var(--dim-green); }
+</style>
+</head>
+<body>
+
+<!-- BIOS POST Screen -->
+<div id="bios-screen">
+  <div class="bios-title">AMI BIOS v2.31.1236 — © 1985-2024 American Megatrends Inc.</div>
+  <div class="bios-sub">https://www.ami.com/bios</div>
+  <div id="bios-content"></div>
+</div>
+
+<!-- Main boot screen (hidden initially) -->
+<div id="screen" style="display:none"></div>
+
+<script>
+const biosLines = [
+  { text: 'CPU: AMD Ryzen 9 7950X @ 4.50GHz', delay: 80 },
+  { text: 'Memory Test: ', delay: 300, special: 'memtest' },
+  { text: '', delay: 600 },
+  { text: 'Detecting IDE drives...', delay: 200 },
+  { text: '  Primary Master  : ST2000DM008-2FR102  (2000 GB)', delay: 150 },
+  { text: '  Primary Slave   : None', delay: 80 },
+  { text: '  Secondary Master: SAMSUNG MZ7LN512HCHP  (512 GB)', delay: 100 },
+  { text: '', delay: 100 },
+  { text: 'USB Devices: 4 Found', delay: 150 },
+  { text: 'PCI Express: 16x Slot — NVIDIA RTX 4090 (24 GB VRAM)', delay: 150 },
+  { text: '', delay: 200 },
+  { text: 'Press DEL to enter SETUP, F12 for Boot Menu', delay: 400 },
+  { text: '', delay: 200 },
+  { text: 'Booting from: /dev/sda  (GRUB 2.12)...', delay: 600 },
+];
+
+const screen = document.getElementById('screen');
+const biosDiv = document.getElementById('bios-content');
+
+// BIOS memory test animation
+async function runBios() {
+  for (const item of biosLines) {
+    await sleep(item.delay);
+    if (item.special === 'memtest') {
+      const el = document.createElement('div');
+      el.innerHTML = 'Memory Test: ';
+      biosDiv.appendChild(el);
+      await animateMemTest(el);
+    } else {
+      const el = document.createElement('div');
+      el.style.color = item.text.startsWith('Press') ? '#ffd700' : '';
+      el.textContent = item.text;
+      biosDiv.appendChild(el);
+    }
+  }
+  await sleep(700);
+  document.getElementById('bios-screen').style.display = 'none';
+  screen.style.display = 'block';
+  runBoot();
+}
+
+async function animateMemTest(el) {
+  const total = 65536;
+  const steps = 40;
+  for (let i = 1; i <= steps; i++) {
+    const mb = Math.floor((total / steps) * i);
+    el.innerHTML = `Memory Test: <span class="mem-bar">${mb} MB OK</span>`;
+    await sleep(30);
+  }
+  el.innerHTML = `Memory Test: <span style="color:#00ff41">65536 MB OK ✓</span>`;
+}
+
+// Boot sequence lines
+const bootSequence = [
+  { type: 'logo' },
+  { text: 'Linux version 6.8.0-45-generic (buildd@lcy02-amd64-032) (gcc version 13.2.0)', cls: 'dim', delay: 20 },
+  { text: 'Command line: BOOT_IMAGE=/vmlinuz-6.8.0-45-generic root=/dev/mapper/ubuntu--vg-ubuntu--lv ro quiet splash', cls: 'dim', delay: 20 },
+  { text: '', delay: 30 },
+  { text: 'BIOS-provided physical RAM map:', cls: 'dim', delay: 40 },
+  { text: '  BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable', cls: 'dim', delay: 15 },
+  { text: '  BIOS-e820: [mem 0x0000000100000000-0x000000103fffffff] usable', cls: 'dim', delay: 15 },
+  { text: '', delay: 20 },
+  { text: 'DMI: ASUS ROG STRIX X670E-F GAMING WIFI, BIOS 1404 10/26/2023', cls: 'info', delay: 40 },
+  { text: '', delay: 60 },
+
+  // Systemd-style entries
+  { type: 'status', label: 'Started', text: 'Load Kernel Modules', status: 'ok', delay: 60 },
+  { type: 'status', label: 'Started', text: 'Apply Kernel Variables', status: 'ok', delay: 50 },
+  { type: 'status', label: 'Reached target', text: 'Local File Systems (Pre)', status: 'ok', delay: 55 },
+  { type: 'status', label: 'Mounting', text: '/proc — Kernel Proc Interface...', status: 'ok', delay: 60 },
+  { type: 'status', label: 'Mounting', text: '/sys — Kernel SysFS Interface...', status: 'ok', delay: 50 },
+  { type: 'status', label: 'Started', text: 'Create System Users', status: 'ok', delay: 70 },
+  { type: 'status', label: 'Started', text: 'Create Static Device Nodes', status: 'ok', delay: 55 },
+  { type: 'status', label: 'Starting', text: 'udev Kernel Device Manager...', status: 'ok', delay: 90 },
+  { type: 'status', label: 'Started', text: 'udev Kernel Device Manager', status: 'ok', delay: 60 },
+
+  { text: '', delay: 20 },
+  { text: 'EXT4-fs (sda2): mounted filesystem with ordered data mode. Quota mode: none.', cls: 'dim', delay: 50 },
+  { text: '', delay: 20 },
+
+  { type: 'status', label: 'Mounted', text: '/boot/efi — EFI System Partition', status: 'ok', delay: 60 },
+  { type: 'status', label: 'Started', text: 'Load/Save RF Kill Switch Status', status: 'ok', delay: 60 },
+  { type: 'status', label: 'Started', text: 'Set Up Additional Binary Formats', status: 'ok', delay: 55 },
+  { type: 'status', label: 'Starting', text: 'Network Manager...', status: 'ok', delay: 100 },
+  { type: 'status', label: 'Started', text: 'Network Manager', status: 'ok', delay: 70 },
+  { type: 'status', label: 'Starting', text: 'WPA supplicant...', status: 'ok', delay: 80 },
+  { type: 'status', label: 'Started', text: 'WPA supplicant', status: 'ok', delay: 60 },
+  { type: 'status', label: 'Starting', text: 'CUPS Printing Service...', status: 'ok', delay: 70 },
+  { type: 'status', label: 'Started', text: 'CUPS Printing Service', status: 'ok', delay: 65 },
+  { type: 'status', label: 'Starting', text: 'OpenSSH Server Daemon...', status: 'ok', delay: 80 },
+  { type: 'status', label: 'Started', text: 'OpenSSH Server Daemon', status: 'ok', delay: 70 },
+  { type: 'status', label: 'Starting', text: 'Snap daemon...', status: 'warn', delay: 200 },
+  { type: 'status', label: 'Failed', text: 'Snap daemon — degraded (see journalctl)', status: 'fail', delay: 60 },
+  { type: 'status', label: 'Starting', text: 'Avahi mDNS/DNS-SD Stack...', status: 'ok', delay: 70 },
+  { type: 'status', label: 'Started', text: 'Avahi mDNS/DNS-SD Stack', status: 'ok', delay: 65 },
+  { type: 'status', label: 'Starting', text: 'Disk Manager...', status: 'ok', delay: 90 },
+  { type: 'status', label: 'Started', text: 'Disk Manager', status: 'ok', delay: 70 },
+
+  { text: '', delay: 30 },
+  { type: 'fsck' },
+
+  { text: '', delay: 30 },
+  { type: 'status', label: 'Started', text: 'Monitoring of LVM2 mirrors', status: 'ok', delay: 60 },
+  { type: 'status', label: 'Reached target', text: 'Basic System', status: 'ok', delay: 60 },
+  { type: 'status', label: 'Reached target', text: 'Network', status: 'ok', delay: 55 },
+  { type: 'status', label: 'Starting', text: 'Daily apt upgrade and clean activities...', status: 'ok', delay: 70 },
+  { type: 'status', label: 'Starting', text: 'GNOME Display Manager...', status: 'ok', delay: 120 },
+  { type: 'status', label: 'Started', text: 'GNOME Display Manager', status: 'ok', delay: 80 },
+  { type: 'status', label: 'Reached target', text: 'Graphical Interface', status: 'ok', delay: 60 },
+  { type: 'status', label: 'Reached target', text: 'Multi-User System', status: 'ok', delay: 50 },
+
+  { text: '', delay: 80 },
+  { type: 'progress' },
+  { text: '', delay: 100 },
+  { type: 'login' },
+];
+
+const logoArt = `\
+  _      _                   ___  ____  
+ | |    (_)_ __  _   ___  __/ _ \\/ ___| 
+ | |    | | '_ \\| | | \\ \\/ / | | \\___ \\ 
+ | |___ | | | | | |_| |>  <| |_| |___) |
+ |_____|_|_| |_|\\__,_/_/\\_\\\\___/|____/ 
+`;
+
+async function runBoot() {
+  for (const item of bootSequence) {
+    if (item.type === 'logo') {
+      await sleep(100);
+      const pre = document.createElement('pre');
+      pre.id = 'boot-logo';
+      pre.classList.add('glow');
+      pre.textContent = logoArt;
+      screen.appendChild(pre);
+      const sub = makeLine('Ubuntu 24.04.1 LTS — Kernel 6.8.0-45-generic — x86_64', 'info');
+      screen.appendChild(sub);
+      screen.appendChild(makeLine('', 'dim'));
+      await sleep(200);
+    } else if (item.type === 'status') {
+      await sleep(item.delay || 60);
+      screen.appendChild(makeStatusLine(item));
+    } else if (item.type === 'fsck') {
+      await runFsck();
+    } else if (item.type === 'progress') {
+      await runProgressBar();
+    } else if (item.type === 'login') {
+      showLogin();
+    } else {
+      await sleep(item.delay || 30);
+      screen.appendChild(makeLine(item.text, item.cls || 'dim'));
+    }
+    screen.scrollTop = screen.scrollHeight;
+  }
+}
+
+function makeLine(text, cls) {
+  const div = document.createElement('div');
+  div.className = 'line ' + (cls || '');
+  div.textContent = text;
+  div.style.animationDelay = '0s';
+  return div;
+}
+
+function makeStatusLine(item) {
+  const div = document.createElement('div');
+  div.className = 'line';
+  const statusMap = {
+    ok:   { bracket: '[  <span class="bracket-ok">OK</span>  ]', labelColor: '#4fc3f7' },
+    fail: { bracket: '[<span class="bracket-fail">FAILED</span>]', labelColor: '#ff3333' },
+    warn: { bracket: '[ <span class="bracket-warn">WARN</span> ]', labelColor: '#ffd700' },
+  };
+  const s = statusMap[item.status] || statusMap.ok;
+  div.innerHTML = `<span class="dim">${s.bracket}</span> <span style="color:${s.labelColor}">${item.label}</span> <span class="white">${item.text}</span>`;
+  return div;
+}
+
+async function runFsck() {
+  const line = document.createElement('div');
+  line.className = 'line';
+  line.id = 'fsck-line';
+  line.textContent = 'fsck from util-linux 2.39.3';
+  screen.appendChild(line);
+  await sleep(150);
+
+  const drives = [
+    { dev: '/dev/sda1', label: 'EFI', blocks: 523264 },
+    { dev: '/dev/sda2', label: 'ext4', blocks: 3907328 },
+    { dev: '/dev/mapper/ubuntu--vg', label: 'LVM', blocks: 52428800 },
+  ];
+
+  for (const d of drives) {
+    const l = document.createElement('div');
+    l.className = 'line dim';
+    l.textContent = `${d.dev}: clean, ${Math.floor(d.blocks * 0.0023)} files, ${Math.floor(d.blocks * 0.31)}/${d.blocks} blocks`;
+    screen.appendChild(l);
+    screen.scrollTop = screen.scrollHeight;
+    await sleep(100);
+  }
+}
+
+async function runProgressBar() {
+  await sleep(100);
+  const wrap = document.createElement('div');
+  wrap.id = 'progress-bar-wrap';
+  wrap.style.opacity = '1';
+
+  const label = document.createElement('span');
+  label.className = 'dim';
+  label.textContent = 'Starting services  [';
+
+  const bar = document.createElement('span');
+  bar.id = 'progress-bar';
+
+  const barOuter = document.createElement('span');
+  barOuter.style.display = 'inline-block';
+  barOuter.style.width = '200px';
+  barOuter.style.background = '#0d2e0d';
+  barOuter.style.border = '1px solid #1a5c1a';
+  barOuter.style.verticalAlign = 'middle';
+  barOuter.appendChild(bar);
+
+  const end = document.createElement('span');
+  end.className = 'dim';
+  end.textContent = ']';
+
+  const pct = document.createElement('span');
+  pct.className = 'ok';
+  pct.style.marginLeft = '10px';
+  pct.textContent = '0%';
+
+  wrap.appendChild(label);
+  wrap.appendChild(barOuter);
+  wrap.appendChild(end);
+  wrap.appendChild(pct);
+  screen.appendChild(wrap);
+
+  for (let i = 0; i <= 100; i++) {
+    bar.style.width = (i * 2) + 'px';
+    pct.textContent = i + '%';
+    if (i === 100) pct.style.color = '#00ff41';
+    await sleep(18);
+  }
+
+  await sleep(200);
+  const done = document.createElement('div');
+  done.className = 'line ok glow';
+  done.style.marginTop = '4px';
+  done.textContent = 'System boot complete.';
+  screen.appendChild(done);
+  await sleep(300);
+}
+
+function showLogin() {
+  const hostname = 'archimedes';
+  const lines = [
+    '',
+    'Ubuntu 24.04.1 LTS ' + hostname + ' tty1',
+    '',
+  ];
+
+  for (const l of lines) {
+    const div = document.createElement('div');
+    div.className = 'line white';
+    div.textContent = l;
+    screen.appendChild(div);
+  }
+
+  // Login prompt
+  const loginDiv = document.createElement('div');
+  loginDiv.id = 'login-prompt';
+  loginDiv.style.display = 'block';
+
+  const userLine = document.createElement('div');
+  userLine.className = 'prompt-line';
+  userLine.innerHTML = `${hostname} login: <span id="cursor"></span>`;
+
+  loginDiv.appendChild(userLine);
+  screen.appendChild(loginDiv);
+
+  // Simulate typing a username
+  setTimeout(() => typeUsername(userLine), 600);
+}
+
+async function typeUsername(el) {
+  const username = 'root';
+  const cursorEl = el.querySelector('#cursor');
+  let typed = '';
+
+  for (const ch of username) {
+    await sleep(120 + Math.random() * 80);
+    typed += ch;
+    cursorEl.insertAdjacentText('beforebegin', ch);
+  }
+
+  await sleep(400);
+  // Remove cursor, add newline, show password prompt
+  cursorEl.remove();
+
+  const passLine = document.createElement('div');
+  passLine.className = 'prompt-line';
+  passLine.innerHTML = 'Password: ';
+  screen.appendChild(passLine);
+  screen.scrollTop = screen.scrollHeight;
+
+  await sleep(800);
+  // Simulate asterisks
+  const stars = '••••••••';
+  for (const s of stars) {
+    await sleep(100 + Math.random() * 60);
+    passLine.innerHTML += '<span style="color:#555">*</span>';
+  }
+
+  await sleep(600);
+
+  const msgLines = [
+    { text: '', cls: '' },
+    { text: 'Last login: Thu Mar 12 23:41:07 2026 on tty1', cls: 'dim' },
+    { text: '', cls: '' },
+    { text: 'Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.8.0-45-generic x86_64)', cls: 'info' },
+    { text: '', cls: '' },
+    { text: ' * Documentation:  https://help.ubuntu.com', cls: 'dim' },
+    { text: ' * Management:     https://landscape.canonical.com', cls: 'dim' },
+    { text: ' * Support:        https://ubuntu.com/advantage', cls: 'dim' },
+    { text: '', cls: '' },
+    { text: '0 updates can be applied immediately.', cls: 'ok' },
+    { text: '', cls: '' },
+  ];
+
+  for (const m of msgLines) {
+    const d = document.createElement('div');
+    d.className = 'line ' + m.cls;
+    d.textContent = m.text;
+    screen.appendChild(d);
+    screen.scrollTop = screen.scrollHeight;
+    await sleep(50);
+  }
+
+  // Final shell prompt
+  const shellLine = document.createElement('div');
+  shellLine.className = 'line glow';
+  shellLine.innerHTML = '<span style="color:#e55">root</span><span class="dim">@</span><span style="color:#4fc3f7">archimedes</span><span class="dim">:</span><span style="color:#ffd700">~</span><span class="dim">#</span> <span id="shell-cursor"></span>';
+  screen.appendChild(shellLine);
+  screen.scrollTop = screen.scrollHeight;
+
+  // Wait a few seconds, then type the command
+  await sleep(2800);
+  await typeCommand(shellLine);
+}
+
+async function typeCommand(shellLine) {
+  const cursorEl = document.getElementById('shell-cursor');
+  const command = 'systemctl start resume.daemon';
+  let typed = '';
+
+  for (const ch of command) {
+    await sleep(90 + Math.random() * 70);
+    typed += ch;
+    cursorEl.insertAdjacentText('beforebegin', ch);
+    screen.scrollTop = screen.scrollHeight;
+  }
+
+  // Brief pause before "pressing enter"
+  await sleep(500);
+  cursorEl.remove();
+
+  // Output lines after running the command
+  const outputLines = [
+    { text: '', cls: '' },
+    { text: '● resume.daemon — Personal Resume Service', cls: 'white', delay: 80 },
+    { text: '     Loaded: loaded (/etc/systemd/system/resume.daemon; enabled)', cls: 'dim', delay: 40 },
+    { text: '     Active: activating (start) since Fri 2026-03-13 00:00:01 UTC', cls: 'warn', delay: 40 },
+    { text: '    Process: ExecStart=/usr/bin/resume --serve --port 443', cls: 'dim', delay: 40 },
+    { text: '', cls: '', delay: 30 },
+    { text: 'Mar 13 00:00:01 archimedes systemd[1]: Starting Personal Resume Service...', cls: 'dim', delay: 60 },
+    { text: 'Mar 13 00:00:01 archimedes resume[2341]: Initializing resume engine v2.4.1', cls: 'dim', delay: 60 },
+    { text: 'Mar 13 00:00:01 archimedes resume[2341]: Loading profile data... done', cls: 'dim', delay: 80 },
+    { text: 'Mar 13 00:00:02 archimedes resume[2341]: Binding to 0.0.0.0:443', cls: 'dim', delay: 70 },
+    { text: 'Mar 13 00:00:02 archimedes systemd[1]: Started Personal Resume Service.', cls: 'ok', delay: 80 },
+    { text: '', cls: '', delay: 30 },
+  ];
+
+  for (const l of outputLines) {
+    await sleep(l.delay || 40);
+    const d = document.createElement('div');
+    d.className = 'line ' + l.cls;
+    d.textContent = l.text;
+    screen.appendChild(d);
+    screen.scrollTop = screen.scrollHeight;
+  }
+
+  // Second shell prompt
+  const shellLine2 = document.createElement('div');
+  shellLine2.className = 'line glow';
+  shellLine2.innerHTML = '<span style="color:#e55">root</span><span class="dim">@</span><span style="color:#4fc3f7">archimedes</span><span class="dim">:</span><span style="color:#ffd700">~</span><span class="dim">#</span> ';
+  screen.appendChild(shellLine2);
+  screen.scrollTop = screen.scrollHeight;
+
+  await sleep(700);
+
+  // Type the open command
+  const openCmd = 'xdg-open https://localhost/resume.html';
+  for (const ch of openCmd) {
+    await sleep(80 + Math.random() * 60);
+    shellLine2.innerHTML += ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch;
+    screen.scrollTop = screen.scrollHeight;
+  }
+
+  await sleep(450);
+
+  // Flash the screen white briefly before redirect (like a CRT switching input)
+  const flash = document.createElement('div');
+  flash.style.cssText = 'position:fixed;inset:0;background:#00ff41;z-index:999;opacity:0;transition:opacity 0.08s ease-in;';
+  document.body.appendChild(flash);
+  await sleep(30);
+  flash.style.opacity = '0.15';
+  await sleep(80);
+  flash.style.opacity = '0';
+  await sleep(120);
+  flash.style.opacity = '0.9';
+  await sleep(60);
+
+  window.location.href = 'resume.html';
+}
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+runBios();
+</script>
+</body>
 </html>

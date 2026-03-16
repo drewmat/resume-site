@@ -1,3 +1,8 @@
+variable "backend_bucket"{
+  type = string
+  description = "Terraform backend state s3 bucket"
+}
+
 variable "bucket_name" {
   type = string
   description = "Bucket name"

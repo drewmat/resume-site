@@ -53,7 +53,7 @@ data "aws_iam_policy_document" "github-actions-s3" {
     sid    = "TerraformStateObjects"
     effect = "Allow"
     actions = ["s3:*"]
-    resources = ["arn:aws:s3:::${var.backend_bucket}/resumesite/terraform.tfstate"]
+    resources = ["arn:aws:s3:::${var.backend_bucket}/*/resumesite/terraform.tfstate"]
   }
 
   statement {

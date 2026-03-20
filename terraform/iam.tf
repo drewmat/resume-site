@@ -45,6 +45,14 @@ data "aws_iam_policy_document" "github-actions-s3" {
       "s3:ListBucket",
       "s3:GetBucketTagging",
       "s3:PutBucketTagging",
+      "s3:GetBucketCORS",                   # Terraform state refresh on aws_s3_bucket
+      "s3:GetBucketObjectLockConfiguration", # Terraform state refresh on aws_s3_bucket
+      "s3:GetBucketRequestPayment",          # Terraform state refresh on aws_s3_bucket
+      "s3:GetBucketVersioning",              # Terraform state refresh on aws_s3_bucket
+      "s3:GetAccelerateConfiguration",       # Terraform state refresh on aws_s3_bucket
+      "s3:GetEncryptionConfiguration",       # Terraform state refresh on aws_s3_bucket
+      "s3:GetLifecycleConfiguration",        # Terraform state refresh on aws_s3_bucket
+      "s3:GetReplicationConfiguration",      # Terraform state refresh on aws_s3_bucket
     ]
     resources = [aws_s3_bucket.resume_site.arn]
   }
@@ -139,6 +147,7 @@ data "aws_iam_policy_document" "github-actions-dns" {
       "route53:GetHostedZone",
       "route53:ListHostedZones",
       "route53:ListHostedZonesByName",
+      "route53:ListTagsForResource",    # Required by aws_route53_zone data source refresh
       "route53:ChangeResourceRecordSets",
       "route53:GetChange",
       "route53:ListResourceRecordSets",
@@ -160,6 +169,34 @@ resource "aws_iam_user_policy_attachment" "github-actions-dns" {
 # ── Policy 4: IAM self-management ─────────────────────────────────────────────
 data "aws_iam_policy_document" "github-actions-iam" {
   statement {
+    sid    = "IAMManagePolicies"
+    effect = "Allow"
+    actions = [
+      "iam:CreatePolicy",
+      "iam:DeletePolicy",
+      "iam:GetPolicy",            # Required by Terraform to refresh managed policy state
+      "iam:GetPolicyVersion",     # Required alongside GetPolicy during state refresh
+      "iam:ListPolicyVersions",
+      "iam:CreatePolicyVersion",
+      "iam:DeletePolicyVersion",
+      "iam:AttachUserPolicy",
+      "iam:DetachUserPolicy",
+      "iam:ListAttachedUserPolicies",
+    ]
+    # Scoped to only the workspace-named policies this user manages
+    resources = [
+      "arn:aws:iam::*:policy/github-actions-s3-development",
+      "arn:aws:iam::*:policy/github-actions-s3-production",
+      "arn:aws:iam::*:policy/github-actions-cloudfront-development",
+      "arn:aws:iam::*:policy/github-actions-cloudfront-production",
+      "arn:aws:iam::*:policy/github-actions-dns-development",
+      "arn:aws:iam::*:policy/github-actions-dns-production",
+      "arn:aws:iam::*:policy/github-actions-iam-development",
+      "arn:aws:iam::*:policy/github-actions-iam-production",
+    ]
+  }
+
+  statement {
     sid    = "IAMManageGithubActionsUser"
     effect = "Allow"
     actions = [
@@ -169,13 +206,8 @@ data "aws_iam_policy_document" "github-actions-iam" {
       "iam:CreateAccessKey",
       "iam:DeleteAccessKey",
       "iam:ListAccessKeys",
-      "iam:PutUserPolicy",
-      "iam:GetUserPolicy",
-      "iam:DeleteUserPolicy",
-      "iam:ListUserPolicies",
       "iam:TagUser",
       "iam:UntagUser",
-      "iam:ListAttachedUserPolicies",
     ]
     # Scoped to workspace-named users: github-actions-development, github-actions-production
     resources = [

@@ -22,8 +22,6 @@ permissions:
   contents: read
   id-token: write  # Required for OIDC auth
 
-env:
-
 jobs:
   # ─────────────────────────────────────────────
   # JOB 0: Resolve environment from branch name

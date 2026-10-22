@@ -1,0 +1,107 @@
+name: Deploy Content
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'content/**'
+      - '.github/workflows/content.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (overrides branch detection)'
+        required: false
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC auth
+
+env:
+  CONTENT_DIR: ./content
+
+jobs:
+  resolve-env:
+    name: Resolve Environment
+    runs-on: ubuntu-latest
+
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      site_domain: ${{ steps.set-env.outputs.site_domain }}
+
+    steps:
+      - name: Determine environment and site domain
+        id: set-env
+        run: |
+          # workflow_dispatch input takes priority, otherwise derive from branch
+          if [ -n "${{ github.event.inputs.environment }}" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            ENV="prod"
+          else
+            ENV="dev"
+          fi
+
+          # The site bucket and CloudFront alias are both named after the domain
+          if [ "$ENV" = "prod" ]; then
+            DOMAIN="www.andyengdahl.com"
+          else
+            DOMAIN="dev.andyengdahl.com"
+          fi
+
+          echo "environment=$ENV"    >> $GITHUB_OUTPUT
+          echo "site_domain=$DOMAIN" >> $GITHUB_OUTPUT
+          echo "▶ Environment: $ENV ($DOMAIN)"
+
+  deploy:
+    name: Sync Content to S3 (${{ needs.resolve-env.outputs.environment }})
+    runs-on: ubuntu-latest
+    needs: resolve-env
+
+    environment: ${{ needs.resolve-env.outputs.environment }}
+
+    env:
+      SITE_DOMAIN: ${{ needs.resolve-env.outputs.site_domain }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Sync content to S3
+        run: |
+          aws s3 sync "$CONTENT_DIR" "s3://$SITE_DOMAIN" \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html" \
+            --exclude "*.json"
+
+          # HTML and JSON get shorter cache TTLs so updates propagate quickly
+          aws s3 sync "$CONTENT_DIR" "s3://$SITE_DOMAIN" \
+            --delete \
+            --cache-control "public, max-age=0, must-revalidate" \
+            --exclude "*" \
+            --include "*.html" \
+            --include "*.json"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Aliases.Items[?@=='$SITE_DOMAIN']].Id | [0]" \
+            --output text)
+          if [ -z "$DIST_ID" ] || [ "$DIST_ID" = "None" ]; then
+            echo "No CloudFront distribution found for $SITE_DOMAIN" >&2
+            exit 1
+          fi
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+          echo "✅ Deployed to https://$SITE_DOMAIN"

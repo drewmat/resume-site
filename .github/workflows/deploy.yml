@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - dev
+      - development
     paths:
       - 'terraform/**'
       - '.github/workflows/deploy.yml'

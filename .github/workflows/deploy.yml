@@ -17,7 +17,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # Required for OIDC auth (if used instead of static keys)
+  id-token: write  # Required for OIDC auth
 
 env:
   TF_WORKING_DIR: ./terraform
@@ -89,11 +89,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ secrets.AWS_REGION }}
-          # Tip: store separate key pairs under GitHub Environments (dev / prod)
-          # so each environment deploys with least-privilege IAM credentials.
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -146,9 +143,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
 
       - name: Sync content to S3
         run: |

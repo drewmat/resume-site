@@ -120,6 +120,8 @@ data "aws_iam_policy_document" "deploy" {
       "s3:GetBucketTagging",
       "s3:PutBucketTagging",
       "s3:GetBucketCORS",
+      "s3:GetBucketLogging",
+      "s3:GetBucketOwnershipControls",
       "s3:GetBucketObjectLockConfiguration",
       "s3:GetBucketRequestPayment",
       "s3:GetBucketVersioning",
